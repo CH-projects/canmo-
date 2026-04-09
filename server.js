@@ -1,6 +1,11 @@
 import express from 'express';
 import sqlite3 from 'sqlite3';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = 3001;
@@ -63,6 +68,15 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Vulnerable backend running at http://localhost:${port}`);
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// Serve the React app for all other routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+// Use the PORT environment variable if available (standard for Render)
+const PORT = process.env.PORT || port;
+app.listen(PORT, () => {
+  console.log(`Vulnerable backend running at http://localhost:${PORT}`);
 });

@@ -11,7 +11,8 @@ function Login({ onLogin }) {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/login', {
+      // Use a relative path. In development it uses the Vite proxy, in production it hits the Express server directly.
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
