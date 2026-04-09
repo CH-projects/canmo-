@@ -71,7 +71,7 @@ app.post('/api/login', (req, res) => {
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // Serve the React app for all other routes
-app.get('*', (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
