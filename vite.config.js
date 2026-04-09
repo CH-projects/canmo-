@@ -6,6 +6,6 @@ export default defineConfig({
   base: './',
   plugins: [react()],
   preview: {
-    allowedHosts: ['canmo.onrender.com']
+    allowedHosts: 'all'
   }
 })
