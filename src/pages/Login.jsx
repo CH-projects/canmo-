@@ -6,12 +6,29 @@ function Login({ onLogin }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (username === 'admin' && password === '1234') {
-      onLogin();
-    } else {
-      setError('Invalid username or password');
+    setError('');
+
+    try {
+      const response = await fetch('http://localhost:3001/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        onLogin();
+      } else {
+        setError(data.error || 'Invalid username or password');
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError('Failed to connect to the server');
     }
   };
 
