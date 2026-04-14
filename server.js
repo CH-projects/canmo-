@@ -37,6 +37,21 @@ const db = new sqlite3.Database('./demo.db', (err) => {
         });
       }
     });
+
+    // Create employees table
+    db.run(`CREATE TABLE IF NOT EXISTS employees (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      position TEXT NOT NULL,
+      department TEXT NOT NULL,
+      salary REAL
+    )`, (err) => {
+      if (err) {
+        console.error('Error creating employees table', err);
+      } else {
+        console.log('Employees table ready.');
+      }
+    });
   }
 });
 
@@ -65,6 +80,34 @@ app.post('/api/login', (req, res) => {
       console.log('Login failed');
       res.status(401).json({ success: false, error: 'Invalid username or password' });
     }
+  });
+});
+
+// GET all employees
+app.get('/api/employees', (req, res) => {
+  db.all('SELECT * FROM employees', [], (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ success: true, count: rows.length, data: rows });
+  });
+});
+
+// POST a new employee
+app.post('/api/employees', (req, res) => {
+  const { name, position, department, salary } = req.body;
+  if (!name || !position || !department) {
+    return res.status(400).json({ error: 'Name, position, and department are required' });
+  }
+
+  const query = `INSERT INTO employees (name, position, department, salary) VALUES (?, ?, ?, ?)`;
+  db.run(query, [name, position, department, salary], function(err) {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.status(201).json({ success: true, employee: { id: this.lastID, name, position, department, salary } });
   });
 });
 
