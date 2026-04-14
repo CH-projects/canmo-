@@ -1,20 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { Download } from 'lucide-react';
 
+const readStoredList = (key) => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function Payroll() {
-  const [employees, setEmployees] = useState([]);
-  const [payrollRuns, setPayrollRuns] = useState([]);
+  const [employees] = useState(() => readStoredList('cs_employees'));
+  const [payrollRuns, setPayrollRuns] = useState(() => readStoredList('cs_payroll'));
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-
-  useEffect(() => {
-    const savedEmp = localStorage.getItem('cs_employees');
-    if (savedEmp) setEmployees(JSON.parse(savedEmp));
-    
-    const savedRuns = localStorage.getItem('cs_payroll');
-    if (savedRuns) setPayrollRuns(JSON.parse(savedRuns));
-  }, []);
 
   const generatePayroll = () => {
     // Ported business logic from PayrollService.java
@@ -30,7 +31,7 @@ export default function Payroll() {
       const netSalary = emp.salary - deduction;
       
       return {
-        id: Date.now() + emp.id,
+        id: Number(`${currentYear}${String(currentMonth).padStart(2, '0')}${String(emp.id).padStart(4, '0')}`),
         employeeId: emp.id,
         employeeName: emp.name,
         month: currentMonth,

@@ -1,18 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
 
-export default function Expenses() {
-  const [expenses, setExpenses] = useState([]);
+const readStoredList = (key) => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+};
 
-  useEffect(() => {
-    const saved = localStorage.getItem('cs_expenses');
-    if (saved) setExpenses(JSON.parse(saved));
-  }, []);
+export default function Expenses() {
+  const [expenses, setExpenses] = useState(() => readStoredList('cs_expenses'));
 
   const addPlaceholder = () => {
+    const nextId = expenses.reduce((maxId, expense) => Math.max(maxId, Number(expense.id) || 0), 0) + 1;
     const newExp = {
-      id: Date.now(),
+      id: nextId,
       date: format(new Date(), 'yyyy-MM-dd'),
       category: ['Office Supplies', 'Utilities', 'Software', 'Travel'][Math.floor(Math.random() * 4)],
       description: 'Monthly subscription or purchase',

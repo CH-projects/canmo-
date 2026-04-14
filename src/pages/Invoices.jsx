@@ -1,19 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { format, addDays } from 'date-fns';
 import { Plus } from 'lucide-react';
 
-export default function Invoices() {
-  const [invoices, setInvoices] = useState([]);
+const readStoredList = (key) => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+};
 
-  useEffect(() => {
-    const saved = localStorage.getItem('cs_invoices');
-    if (saved) setInvoices(JSON.parse(saved));
-  }, []);
+export default function Invoices() {
+  const [invoices, setInvoices] = useState(() => readStoredList('cs_invoices'));
 
   const addPlaceholder = () => {
     const today = new Date();
+    const nextId = invoices.reduce((maxId, invoice) => Math.max(maxId, Number(invoice.id) || 0), 0) + 1;
     const inv = {
-      id: Date.now(),
+      id: nextId,
       number: `INV-${Math.floor(Math.random() * 10000)}`,
       customer: `Client Corp ${Math.floor(Math.random() * 100)}`,
       date: format(today, 'yyyy-MM-dd'),

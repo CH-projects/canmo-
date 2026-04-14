@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 
-export default function Attendance() {
-  const [employees, setEmployees] = useState([]);
-  const [records, setRecords] = useState([]);
-  const today = format(new Date(), 'yyyy-MM-dd');
+const readStoredList = (key) => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+};
 
-  useEffect(() => {
-    const savedEmp = localStorage.getItem('cs_employees');
-    if (savedEmp) setEmployees(JSON.parse(savedEmp));
-    
-    const savedRec = localStorage.getItem('cs_attendance');
-    if (savedRec) setRecords(JSON.parse(savedRec));
-  }, []);
+export default function Attendance() {
+  const [employees] = useState(() => readStoredList('cs_employees'));
+  const [records, setRecords] = useState(() => readStoredList('cs_attendance'));
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const markAttendance = (empId, status) => {
     const existing = records.find(r => r.employeeId === empId && r.date === today);
@@ -21,8 +22,9 @@ export default function Attendance() {
     if (existing) {
       newRecords = records.map(r => r.id === existing.id ? { ...r, status } : r);
     } else {
+      const nextId = records.reduce((maxId, record) => Math.max(maxId, Number(record.id) || 0), 0) + 1;
       newRecords = [...records, { 
-        id: Date.now(), employeeId: empId, date: today, status, checkIn: format(new Date(), 'HH:mm')
+        id: nextId, employeeId: empId, date: today, status, checkIn: format(new Date(), 'HH:mm')
       }];
     }
     

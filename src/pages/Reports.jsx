@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Download, FileText } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 
@@ -24,13 +24,93 @@ const readStoredList = (key) => {
   }
 };
 
+const buildFinanceReport = (reportData) => {
+  const totalExpenses = reportData.expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalInvoiced = reportData.invoices.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const outstanding = reportData.invoices
+    .filter((item) => item.status !== 'PAID')
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  const invoiceLines = reportData.invoices.length > 0
+    ? reportData.invoices.map((item) =>
+        `${item.number} | ${item.customer} | Total: ${formatCurrency(item.amount)} | Status: ${item.status}`
+      )
+    : ['No invoices recorded.'];
+
+  const expenseLines = reportData.expenses.length > 0
+    ? reportData.expenses.map((item) =>
+        `${item.date} | ${item.category} | ${item.description} | ${formatCurrency(item.amount)}`
+      )
+    : ['No expenses recorded.'];
+
+  return [
+    'FINANCE REPORT',
+    `Date: ${format(new Date(), 'yyyy-MM-dd')}`,
+    '',
+    `Total Expenses: ${formatCurrency(totalExpenses)}`,
+    `Total Invoiced: ${formatCurrency(totalInvoiced)}`,
+    `Outstanding Receivables: ${formatCurrency(outstanding)}`,
+    '',
+    'Invoices',
+    ...invoiceLines,
+    '',
+    'Expenses',
+    ...expenseLines
+  ].join('\n');
+};
+
+const buildAttendanceReport = (reportData) => {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const todayAttendance = reportData.attendance.filter((item) => item.date === today);
+
+  const lines = reportData.employees.length > 0
+    ? reportData.employees.map((employee) => {
+        const record = todayAttendance.find((item) => item.employeeId === employee.id);
+        return [
+          employee.code,
+          employee.name,
+          record?.status || 'UNMARKED',
+          record?.checkIn || '-'
+        ].join(' | ');
+      })
+    : ['No employees available.'];
+
+  return [
+    'ATTENDANCE REPORT',
+    `Date: ${today}`,
+    '',
+    ...lines
+  ].join('\n');
+};
+
+const buildPayrollReport = (reportData) => {
+  const lines = reportData.payroll.length > 0
+    ? reportData.payroll.map((item) =>
+        [
+          item.employeeName,
+          `Gross: ${formatCurrency(item.grossSalary)}`,
+          `Deduction: ${formatCurrency(item.deductionAmount)}`,
+          `Net: ${formatCurrency(item.netSalary)}`,
+          `Present: ${item.presentDays}`,
+          `Absent: ${item.absentDays}`
+        ].join(' | ')
+      )
+    : ['No payroll generated yet.'];
+
+  return [
+    'PAYROLL REPORT',
+    `Date: ${format(new Date(), 'yyyy-MM-dd')}`,
+    '',
+    ...lines
+  ].join('\n');
+};
+
 export default function Reports() {
   const [searchParams] = useSearchParams();
   const requestedType = searchParams.get('type');
-  const [reportType, setReportType] = useState(
+  const [selectedType, setSelectedType] = useState(
     REPORT_LABELS[requestedType] ? requestedType : 'finance'
   );
-  const [reportContent, setReportContent] = useState('');
 
   const reportData = useMemo(() => {
     const employees = readStoredList('cs_employees');
@@ -42,113 +122,21 @@ export default function Reports() {
     return { employees, attendance, payroll, expenses, invoices };
   }, []);
 
-  const buildFinanceReport = () => {
-    const totalExpenses = reportData.expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const totalInvoiced = reportData.invoices.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const outstanding = reportData.invoices
-      .filter((item) => item.status !== 'PAID')
-      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
-
-    const invoiceLines = reportData.invoices.length > 0
-      ? reportData.invoices.map((item) =>
-          `${item.number} | ${item.customer} | Total: ${formatCurrency(item.amount)} | Status: ${item.status}`
-        )
-      : ['No invoices recorded.'];
-
-    const expenseLines = reportData.expenses.length > 0
-      ? reportData.expenses.map((item) =>
-          `${item.date} | ${item.category} | ${item.description} | ${formatCurrency(item.amount)}`
-        )
-      : ['No expenses recorded.'];
-
-    return [
-      'FINANCE REPORT',
-      `Date: ${format(new Date(), 'yyyy-MM-dd')}`,
-      '',
-      `Total Expenses: ${formatCurrency(totalExpenses)}`,
-      `Total Invoiced: ${formatCurrency(totalInvoiced)}`,
-      `Outstanding Receivables: ${formatCurrency(outstanding)}`,
-      '',
-      'Invoices',
-      ...invoiceLines,
-      '',
-      'Expenses',
-      ...expenseLines
-    ].join('\n');
-  };
-
-  const buildAttendanceReport = () => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const todayAttendance = reportData.attendance.filter((item) => item.date === today);
-
-    const lines = reportData.employees.length > 0
-      ? reportData.employees.map((employee) => {
-          const record = todayAttendance.find((item) => item.employeeId === employee.id);
-          return [
-            employee.code,
-            employee.name,
-            record?.status || 'UNMARKED',
-            record?.checkIn || '-'
-          ].join(' | ');
-        })
-      : ['No employees available.'];
-
-    return [
-      'ATTENDANCE REPORT',
-      `Date: ${today}`,
-      '',
-      ...lines
-    ].join('\n');
-  };
-
-  const buildPayrollReport = () => {
-    const lines = reportData.payroll.length > 0
-      ? reportData.payroll.map((item) =>
-          [
-            item.employeeName,
-            `Gross: ${formatCurrency(item.grossSalary)}`,
-            `Deduction: ${formatCurrency(item.deductionAmount)}`,
-            `Net: ${formatCurrency(item.netSalary)}`,
-            `Present: ${item.presentDays}`,
-            `Absent: ${item.absentDays}`
-          ].join(' | ')
-        )
-      : ['No payroll generated yet.'];
-
-    return [
-      'PAYROLL REPORT',
-      `Date: ${format(new Date(), 'yyyy-MM-dd')}`,
-      '',
-      ...lines
-    ].join('\n');
-  };
-
-  const generateReport = (type = reportType) => {
-    if (type === 'attendance') {
-      setReportContent(buildAttendanceReport());
-      return;
+  const reportType = REPORT_LABELS[requestedType] ? requestedType : selectedType;
+  const reportContent = useMemo(() => {
+    if (reportType === 'attendance') {
+      return buildAttendanceReport(reportData);
     }
 
-    if (type === 'payroll') {
-      setReportContent(buildPayrollReport());
-      return;
+    if (reportType === 'payroll') {
+      return buildPayrollReport(reportData);
     }
 
-    setReportContent(buildFinanceReport());
-  };
-
-  useEffect(() => {
-    if (REPORT_LABELS[requestedType]) {
-      setReportType(requestedType);
-      generateReport(requestedType);
-      return;
-    }
-
-    generateReport(reportType);
-  }, [requestedType]);
+    return buildFinanceReport(reportData);
+  }, [reportType, reportData]);
 
   const downloadReport = () => {
-    const content = reportContent.trim() ? reportContent : buildFinanceReport();
+    const content = reportContent.trim() ? reportContent : buildFinanceReport(reportData);
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -165,9 +153,6 @@ export default function Reports() {
       <div className="page-header">
         <h1 className="page-title">Reports</h1>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={() => generateReport()}>
-            <FileText size={18} /> Generate Report
-          </button>
           <button className="btn" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-main)' }} onClick={downloadReport}>
             <Download size={18} /> Download Report
           </button>
@@ -181,7 +166,7 @@ export default function Reports() {
         <select
           id="report-type"
           value={reportType}
-          onChange={(event) => setReportType(event.target.value)}
+          onChange={(event) => setSelectedType(event.target.value)}
           style={{
             width: '100%',
             maxWidth: '320px',
