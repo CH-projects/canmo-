@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const dbPath = path.join(__dirname, 'demo.db');
 
 const app = express();
 const port = 3001;
@@ -17,11 +18,11 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize SQLite database
-const db = new sqlite3.Database('./demo.db', (err) => {
+const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error opening database', err.message);
   } else {
-    console.log('Connected to the SQLite database.');
+    console.log(`Connected to the SQLite database at ${dbPath}.`);
 
     // Create users table and seed it
     db.run(
@@ -36,23 +37,19 @@ const db = new sqlite3.Database('./demo.db', (err) => {
         } else {
           console.log('Users table ready.');
 
-          db.get("SELECT * FROM users WHERE username = 'admin'", (err, row) => {
-            if (err) {
-              console.error('Error checking admin user', err.message);
-            } else if (!row) {
-              db.run(
-                "INSERT INTO users (username, password) VALUES (?, ?)",
-                ['admin', 'MySecretSuperPassword99!'],
-                (err) => {
-                  if (err) {
-                    console.error('Error seeding admin user', err.message);
-                  } else {
-                    console.log('Seeded initial admin user.');
-                  }
-                }
-              );
+          db.run(
+            `INSERT INTO users (username, password)
+             VALUES (?, ?)
+             ON CONFLICT(username) DO UPDATE SET password = excluded.password`,
+            ['admin', 'MySecretSuperPassword99!'],
+            (err) => {
+              if (err) {
+                console.error('Error seeding admin user', err.message);
+              } else {
+                console.log('Ensured demo admin user is available.');
+              }
             }
-          });
+          );
         }
       }
     );
