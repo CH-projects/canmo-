@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, 'demo.db');
+const DEMO_USERNAME = 'admin';
+const DEMO_PASSWORD = 'admin123';
 
 const app = express();
 const port = 3001;
@@ -41,12 +43,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
             `INSERT INTO users (username, password)
              VALUES (?, ?)
              ON CONFLICT(username) DO UPDATE SET password = excluded.password`,
-            ['admin', 'MySecretSuperPassword99!'],
+            [DEMO_USERNAME, DEMO_PASSWORD],
             (err) => {
               if (err) {
                 console.error('Error seeding admin user', err.message);
               } else {
-                console.log('Ensured demo admin user is available.');
+                console.log(`Ensured demo admin user is available for ${DEMO_USERNAME}.`);
               }
             }
           );
