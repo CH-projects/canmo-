@@ -1,40 +1,40 @@
-import express from "express";
-import session from "express-session";
-import sqlite3 from "sqlite3";
-import cors from "cors";
-import path from "path";
-import process from "node:process";
-import { fileURLToPath } from "url";
+import express from 'express';
+import session from 'express-session';
+import sqlite3 from 'sqlite3';
+import cors from 'cors';
+import path from 'path';
+import process from 'node:process';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, "demo.db");
-const DEMO_USERNAME = "admin";
-const DEMO_PASSWORD = "admin123"; // ✅ Single source of truth for password
+const dbPath = path.join(__dirname, 'demo.db');
+const DEMO_USERNAME = 'admin';
+const DEMO_PASSWORD = 'admin123'; // ✅ Single source of truth for password
 
 const app = express();
 const port = 3001;
-let employeeTitleColumn = "role";
+let employeeTitleColumn = 'role';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(
   session({
-    secret: "secret123",
+    secret: 'secret123',
     resave: false,
     saveUninitialized: true,
     cookie: {
-      secure: false, // HTTP only — intentionally vulnerable for demo
-      httpOnly: false, // Allows JS to read cookie — intentionally vulnerable for demo
-    },
-  }),
+      secure: false,   // HTTP only — intentionally vulnerable for demo
+      httpOnly: false  // Allows JS to read cookie — intentionally vulnerable for demo
+    }
+  })
 );
 
 // Initialize SQLite database
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
-    console.error("Error opening database", err.message);
+    console.error('Error opening database', err.message);
   } else {
     console.log(`Connected to the SQLite database at ${dbPath}.`);
 
@@ -47,9 +47,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
       )`,
       (err) => {
         if (err) {
-          console.error("Error creating users table", err.message);
+          console.error('Error creating users table', err.message);
         } else {
-          console.log("Users table ready.");
+          console.log('Users table ready.');
 
           db.run(
             `INSERT INTO users (username, password)
@@ -58,16 +58,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
             [DEMO_USERNAME, DEMO_PASSWORD],
             (err) => {
               if (err) {
-                console.error("Error seeding admin user", err.message);
+                console.error('Error seeding admin user', err.message);
               } else {
-                console.log(
-                  `Ensured demo admin user is available for ${DEMO_USERNAME}.`,
-                );
+                console.log(`Ensured demo admin user is available for ${DEMO_USERNAME}.`);
               }
-            },
+            }
           );
         }
-      },
+      }
     );
 
     // Create employees table
@@ -81,64 +79,59 @@ const db = new sqlite3.Database(dbPath, (err) => {
       )`,
       (err) => {
         if (err) {
-          console.error("Error creating employees table", err.message);
+          console.error('Error creating employees table', err.message);
         } else {
-          console.log("Employees table ready.");
+          console.log('Employees table ready.');
 
-          db.all("PRAGMA table_info(employees)", (err, columns) => {
+          db.all('PRAGMA table_info(employees)', (err, columns) => {
             if (err) {
-              console.error("Error reading employees schema", err.message);
+              console.error('Error reading employees schema', err.message);
               return;
             }
 
             const columnNames = columns.map((column) => column.name);
-            employeeTitleColumn = columnNames.includes("role")
-              ? "role"
-              : "position";
+            employeeTitleColumn = columnNames.includes('role') ? 'role' : 'position';
 
             // Seed employees only if table is empty
-            db.get("SELECT COUNT(*) AS count FROM employees", (err, row) => {
+            db.get('SELECT COUNT(*) AS count FROM employees', (err, row) => {
               if (err) {
-                console.error("Error checking employee count", err.message);
+                console.error('Error checking employee count', err.message);
               } else if (row.count === 0) {
                 const insertEmployee = db.prepare(
-                  `INSERT INTO employees (name, department, ${employeeTitleColumn}, salary) VALUES (?, ?, ?, ?)`,
+                  `INSERT INTO employees (name, department, ${employeeTitleColumn}, salary) VALUES (?, ?, ?, ?)`
                 );
 
                 const sampleEmployees = [
-                  ["John Perera", "IT", "Software Engineer", 85000],
-                  ["Nimali Silva", "Human Resources", "HR Manager", 78000],
-                  ["Kasun Fernando", "Finance", "Accountant", 72000],
-                  ["Sahan Jayasinghe", "IT", "Network Administrator", 80000],
-                  ["Dilini Rodrigo", "Marketing", "Marketing Executive", 67000],
-                  ["Amaya Peris", "Operations", "Project Coordinator", 69000],
+                  ['John Perera', 'IT', 'Software Engineer', 85000],
+                  ['Nimali Silva', 'Human Resources', 'HR Manager', 78000],
+                  ['Kasun Fernando', 'Finance', 'Accountant', 72000],
+                  ['Sahan Jayasinghe', 'IT', 'Network Administrator', 80000],
+                  ['Dilini Rodrigo', 'Marketing', 'Marketing Executive', 67000],
+                  ['Amaya Peris', 'Operations', 'Project Coordinator', 69000]
                 ];
 
                 sampleEmployees.forEach((employee) => {
                   insertEmployee.run(employee, (err) => {
                     if (err) {
-                      console.error("Error inserting employee", err.message);
+                      console.error('Error inserting employee', err.message);
                     }
                   });
                 });
 
                 insertEmployee.finalize((err) => {
                   if (err) {
-                    console.error(
-                      "Error finalizing employee seed",
-                      err.message,
-                    );
+                    console.error('Error finalizing employee seed', err.message);
                   } else {
-                    console.log("Seeded initial employee records.");
+                    console.log('Seeded initial employee records.');
                   }
                 });
               } else {
-                console.log("Employees table already contains data.");
+                console.log('Employees table already contains data.');
               }
             });
           });
         }
-      },
+      }
     );
   }
 });
@@ -149,23 +142,19 @@ const handleDemoLogin = (req, res) => {
 
   if (username === DEMO_USERNAME && password === DEMO_PASSWORD) {
     req.session.user = username;
-    return res.json({
-      success: true,
-      message: "Logged in successfully!",
-      user: username,
-    });
+    return res.json({ success: true, message: 'Logged in successfully!', user: username });
   }
 
-  res.status(401).json({ success: false, error: "Invalid credentials" });
+  res.status(401).json({ success: false, error: 'Invalid credentials' });
 };
 
 // DELIBERATELY VULNERABLE SESSION-BASED LOGIN ENDPOINT
-app.post("/login", handleDemoLogin);
+app.post('/login', handleDemoLogin);
 
 // Keep the original demo API route available for the frontend
-app.post("/api/login", handleDemoLogin);
+app.post('/api/login', handleDemoLogin);
 
-app.get("/api/session", (req, res) => {
+app.get('/api/session', (req, res) => {
   if (req.session.user) {
     return res.json({ authenticated: true, user: req.session.user });
   }
@@ -173,38 +162,36 @@ app.get("/api/session", (req, res) => {
   res.status(401).json({ authenticated: false });
 });
 
-app.post("/api/logout", (req, res) => {
+app.post('/api/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error("Error destroying session", err.message);
-      return res.status(500).json({ success: false, error: "Logout failed" });
+      console.error('Error destroying session', err.message);
+      return res.status(500).json({ success: false, error: 'Logout failed' });
     }
 
-    res.clearCookie("connect.sid");
+    res.clearCookie('connect.sid');
     res.json({ success: true });
   });
 });
 
 // GET all employees
-app.get("/api/employees", (req, res) => {
-  db.all("SELECT * FROM employees", [], (err, rows) => {
+app.get('/api/employees', (req, res) => {
+  db.all('SELECT * FROM employees', [], (err, rows) => {
     if (err) {
       console.error(err);
-      return res.status(500).json({ error: "Database error" });
+      return res.status(500).json({ error: 'Database error' });
     }
     res.json({ success: true, count: rows.length, data: rows });
   });
 });
 
 // POST a new employee
-app.post("/api/employees", (req, res) => {
+app.post('/api/employees', (req, res) => {
   const { name, department, role, position, salary } = req.body;
   const employeeTitle = role || position;
 
   if (!name || !department || !employeeTitle) {
-    return res
-      .status(400)
-      .json({ error: "Name, department, and role are required" });
+    return res.status(400).json({ error: 'Name, department, and role are required' });
   }
 
   const query = `INSERT INTO employees (name, department, ${employeeTitleColumn}, salary) VALUES (?, ?, ?, ?)`;
@@ -212,7 +199,7 @@ app.post("/api/employees", (req, res) => {
   db.run(query, [name, department, employeeTitle, salary], function (err) {
     if (err) {
       console.error(err);
-      return res.status(500).json({ error: "Database error" });
+      return res.status(500).json({ error: 'Database error' });
     }
 
     res.status(201).json({
@@ -222,17 +209,17 @@ app.post("/api/employees", (req, res) => {
         name,
         department,
         role: employeeTitle,
-        salary,
-      },
+        salary
+      }
     });
   });
 });
 
-app.use(express.static(path.join(__dirname, "dist")));
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // Serve the React app for all other routes
 app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const PORT = process.env.PORT || port;
