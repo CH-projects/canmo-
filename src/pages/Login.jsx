@@ -44,7 +44,7 @@ function Login({ onLogin }) {
           </div>
           <h2 className="page-title" style={{ fontSize: '1.5rem', marginBottom: '0.5rem', background: 'default', WebkitTextFillColor: 'initial', color: 'white' }}>Login to Canmo</h2>
           <p style={{ color: 'var(--text-muted)' }}>Enter your credentials to continue</p>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>Demo credentials: admin / password123</p>
+          
         </div>
 
         {error && (
