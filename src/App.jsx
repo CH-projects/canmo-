@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Home, Users, Calendar, Banknote, Receipt, Coins, FileText, LogOut } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
@@ -12,6 +12,44 @@ import Login from './pages/Login';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const response = await fetch('/api/session', {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Session check failed:', error);
+      } finally {
+        setIsCheckingSession(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsAuthenticated(false);
+    }
+  };
+
+  if (isCheckingSession) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
@@ -65,7 +103,7 @@ function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div className="user-profile">Admin</div>
               <button 
-                onClick={() => setIsAuthenticated(false)} 
+                onClick={handleLogout}
                 title="Logout"
                 style={{ 
                   background: 'rgba(239, 68, 68, 0.1)', 

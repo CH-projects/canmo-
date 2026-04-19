@@ -1,4 +1,5 @@
 import express from 'express';
+import session from 'express-session';
 import sqlite3 from 'sqlite3';
 import cors from 'cors';
 import path from 'path';
@@ -18,6 +19,17 @@ let employeeTitleColumn = 'role';
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(
+  session({
+    secret: 'secret123',
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      secure: false,
+      httpOnly: false
+    }
+  })
+);
 
 // Initialize SQLite database
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -124,27 +136,40 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// DELIBERATELY VULNERABLE LOGIN ENDPOINT
-app.post('/api/login', (req, res) => {
+const handleDemoLogin = (req, res) => {
   const { username, password } = req.body;
 
-  const query = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
+  if (username === 'admin' && password === 'password123') {
+    req.session.user = username;
+    return res.json({ success: true, message: 'Logged in successfully!', user: username });
+  }
 
-  console.log('Executing query:', query);
+  res.status(401).json({ success: false, error: 'Invalid credentials' });
+};
 
-  db.get(query, (err, row) => {
+// DELIBERATELY VULNERABLE SESSION-BASED LOGIN ENDPOINT
+app.post('/login', handleDemoLogin);
+
+// Keep the original demo API route available for the frontend.
+app.post('/api/login', handleDemoLogin);
+
+app.get('/api/session', (req, res) => {
+  if (req.session.user) {
+    return res.json({ authenticated: true, user: req.session.user });
+  }
+
+  res.status(401).json({ authenticated: false });
+});
+
+app.post('/api/logout', (req, res) => {
+  req.session.destroy((err) => {
     if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Database error' });
+      console.error('Error destroying session', err.message);
+      return res.status(500).json({ success: false, error: 'Logout failed' });
     }
 
-    if (row) {
-      console.log('Login successful for user:', row.username);
-      res.json({ success: true, user: { username: row.username, id: row.id } });
-    } else {
-      console.log('Login failed');
-      res.status(401).json({ success: false, error: 'Invalid username or password' });
-    }
+    res.clearCookie('connect.sid');
+    res.json({ success: true });
   });
 });
 
